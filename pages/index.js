@@ -563,7 +563,7 @@ export default function Home() {
             />
 
             <MultiCheck
-              label="Tari"
+              label="Tari (Optional)"
               value={tari}
               onChange={setTari}
               options={people}
