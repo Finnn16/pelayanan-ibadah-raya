@@ -542,28 +542,28 @@ export default function Home() {
           {/* MultiCheck Grid - Stack on mobile, 2x2 on tablet, 4x1 on desktop */}
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MultiCheck
-              label="WL (multi)"
+              label="WL"
               value={wl}
               onChange={setWl}
               options={people}
             />
 
             <MultiCheck
-              label="Singer (multi)"
+              label="Singer"
               value={singer}
               onChange={setSinger}
               options={people}
             />
 
             <MultiCheck
-              label="Musik (multi)"
+              label="Musik"
               value={musik}
               onChange={setMusik}
               options={people}
             />
 
             <MultiCheck
-              label="Tari (multi)"
+              label="Tari"
               value={tari}
               onChange={setTari}
               options={people}
