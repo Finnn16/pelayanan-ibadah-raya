@@ -169,38 +169,38 @@ function MultiCheck({ label, value, onChange, options }) {
   };
 
   return (
-    <fieldset className="flex h-80 sm:h-96 flex-col gap-2 rounded-xl border border-zinc-200 p-3 text-sm">
-      <legend className="text-center text-sm font-semibold uppercase tracking-wide text-zinc-700">
+    <fieldset className="flex h-64 flex-col gap-2 rounded-lg border border-zinc-200 p-2 text-xs sm:h-72 sm:p-3 sm:text-sm">
+      <legend className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-700 sm:text-sm">
         {label}
       </legend>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <input
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari nama..."
-          className="w-full rounded-md border border-zinc-300 px-2 py-2 outline-none focus:ring-2 focus:ring-zinc-600"
+          placeholder="Cari..."
+          className="flex-1 rounded-md border border-zinc-300 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-zinc-600 sm:py-2 sm:text-sm"
         />
         <button
           type="button"
           onClick={() => onChange([])}
-          className="whitespace-nowrap rounded border px-2 py-2 text-xs hover:bg-zinc-100"
+          className="whitespace-nowrap rounded border px-2 py-1 text-xs hover:bg-zinc-100 sm:px-3"
         >
           Clear
         </button>
       </div>
-      <div className="flex-1 overflow-auto rounded-md border border-zinc-200 p-2">
-        <ul className="flex flex-col gap-1">
+      <div className="flex-1 overflow-auto rounded-md border border-zinc-200 p-1.5 sm:p-2">
+        <ul className="flex flex-col gap-0.5 sm:gap-1">
           {filtered.map((name) => (
-            <li key={name} className="flex items-center gap-2">
+            <li key={name} className="flex items-center gap-1.5 sm:gap-2">
               <input
                 id={`${label}-${name}`}
                 type="checkbox"
-                className="h-4 w-4"
+                className="h-4 w-4 cursor-pointer"
                 checked={value.includes(name)}
                 onChange={() => toggle(name)}
               />
-              <label htmlFor={`${label}-${name}`} className="select-none">
+              <label htmlFor={`${label}-${name}`} className="select-none cursor-pointer text-xs sm:text-sm">
                 {name}
               </label>
             </li>
@@ -208,7 +208,7 @@ function MultiCheck({ label, value, onChange, options }) {
         </ul>
       </div>
       {value.length > 0 && (
-        <div className="pt-1 text-xs text-zinc-600">
+        <div className="truncate pt-0.5 text-xs text-zinc-600 sm:pt-1">
           Terpilih: {value.join(", ")}
         </div>
       )}
@@ -258,6 +258,7 @@ export default function Home() {
   const [people, setPeople] = useState(PEOPLE_FALLBACK);
   const [monthView, setMonthView] = useState(""); // YYYY-MM or empty for all
   const [loading, setLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState(null); // {date, section, item}
 
   // init from API
   useEffect(() => {
@@ -507,73 +508,80 @@ export default function Home() {
         {/* Form Input */}
         <form
           onSubmit={handleSave}
-          className="mb-6 grid grid-cols-1 items-stretch gap-4 rounded-lg border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
+          className="mb-6 rounded-lg border bg-white p-3 shadow-sm sm:p-4"
         >
-          <label className="flex flex-col gap-1 text-sm sm:col-span-2 lg:col-span-4">
-            <span className="font-medium">Tanggal</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded-md border border-zinc-300 px-2 py-2 outline-none focus:ring-2 focus:ring-zinc-600"
-              required
+          {/* Date & Section Row */}
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Tanggal</span>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="rounded-md border border-zinc-300 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-600"
+                required
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Bagian</span>
+              <select
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+                className="rounded-md border border-zinc-300 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-600"
+              >
+                {SECTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {/* MultiCheck Grid - Stack on mobile, 2x2 on tablet, 4x1 on desktop */}
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MultiCheck
+              label="WL (multi)"
+              value={wl}
+              onChange={setWl}
+              options={people}
             />
-          </label>
 
-          <label className="flex flex-col gap-1 text-sm sm:col-span-2 lg:col-span-4">
-            <span className="font-medium">Bagian</span>
-            <select
-              value={section}
-              onChange={(e) => setSection(e.target.value)}
-              className="rounded-md border border-zinc-300 px-2 py-2 outline-none focus:ring-2 focus:ring-zinc-600"
-            >
-              {SECTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+            <MultiCheck
+              label="Singer (multi)"
+              value={singer}
+              onChange={setSinger}
+              options={people}
+            />
 
-          <MultiCheck
-            label="WL (multi)"
-            value={wl}
-            onChange={setWl}
-            options={people}
-          />
+            <MultiCheck
+              label="Musik (multi)"
+              value={musik}
+              onChange={setMusik}
+              options={people}
+            />
 
-          <MultiCheck
-            label="Singer (multi)"
-            value={singer}
-            onChange={setSinger}
-            options={people}
-          />
+            <MultiCheck
+              label="Tari (multi)"
+              value={tari}
+              onChange={setTari}
+              options={people}
+            />
+          </div>
 
-          <MultiCheck
-            label="Musik (multi)"
-            value={musik}
-            onChange={setMusik}
-            options={people}
-          />
-
-          <MultiCheck
-            label="Tari (multi)"
-            value={tari}
-            onChange={setTari}
-            options={people}
-          />
-
-          <div className="flex items-end gap-3">
+          {/* Buttons */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <button
               type="submit"
-              className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+              className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 active:bg-zinc-900"
             >
               Simpan / Update
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-md border px-4 py-2 text-sm hover:bg-zinc-100"
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 active:bg-zinc-200"
             >
               Bersihkan Form
             </button>
@@ -581,21 +589,21 @@ export default function Home() {
         </form>
 
         {/* Actions + View Filters */}
-        <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <button
             onClick={handleExport}
-            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 active:bg-green-800 sm:px-4"
           >
             Export ke Excel
           </button>
 
-          <div className="ml-auto flex items-center gap-2">
-            <label className="text-sm text-zinc-700">Filter Bulan</label>
+          <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center sm:gap-2">
+            <label className="text-xs text-zinc-700 sm:text-sm">Filter Bulan</label>
             <input
               type="month"
               value={monthView}
               onChange={(e) => setMonthView(e.target.value)}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-zinc-600"
+              className="rounded-md border border-zinc-300 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-zinc-600 sm:text-sm"
             />
             {monthView && (
               <button
@@ -609,8 +617,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Mobile-first cards */}
-        <div className="md:hidden">
+  {/* Mobile-first cards (disabled, we use horizontal table even on mobile) */}
+  <div className="hidden">
           {dates.length === 0 ? (
             <div className="rounded-lg border bg-white p-4 text-sm text-zinc-600">
               Belum ada data.
@@ -619,43 +627,47 @@ export default function Home() {
             <div className="space-y-4">
               {viewDates.map((d) => (
                 <section key={d} className="rounded-lg border bg-white">
+                  {/* Date header */}
                   <div className="border-b p-3 text-sm font-medium">
                     {fmtDateLabel(d)}
                   </div>
+
+                  {/* Subheader shown ONCE per date */}
+                  <div className="grid grid-cols-5 items-center gap-2 border-b px-3 py-2 text-[11px] uppercase tracking-wide text-zinc-500">
+                    <div className="font-medium text-zinc-600">Bagian</div>
+                    <div className="text-center">WL</div>
+                    <div className="text-center">Singer</div>
+                    <div className="text-center">Musik</div>
+                    <div className="text-center">Tari</div>
+                  </div>
+
+                  {/* Rows */}
                   <ul className="divide-y">
                     {SECTIONS.map((sec) => {
                       const it = byKey.get(keyOf(d, sec));
+                      const wl = Array.isArray(it?.wl) ? it.wl.join(", ") : (it?.wl ?? "");
+                      const s = (it?.singer || []).join(", ");
+                      const m = (it?.musik || []).join(", ");
+                      const t = (it?.tari || []).join(", ");
                       return (
-                        <li key={`${d}-${sec}`} className="p-3 text-sm">
-                          <div className="mb-1 flex items-center justify-between">
-                            <span className="font-medium">{sec}</span>
-                            {it && (
-                              <button
-                                onClick={() => handleDelete(d, sec)}
-                                className="text-xs text-red-600 underline"
-                              >
-                                hapus
-                              </button>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-4 gap-2 text-xs text-zinc-700">
-                            <div>
-                              <div className="text-[10px] uppercase text-zinc-500">WL</div>
-                              <div>{Array.isArray(it?.wl) ? it.wl.join(", ") : (it?.wl ?? "")}</div>
-                            </div>
-                            <div>
-                              <div className="text-[10px] uppercase text-zinc-500">Singer</div>
-                              <div>{(it?.singer || []).join(", ")}</div>
-                            </div>
-                            <div>
-                              <div className="text-[10px] uppercase text-zinc-500">Musik</div>
-                              <div>{(it?.musik || []).join(", ")}</div>
-                            </div>
-                            <div>
-                              <div className="text-[10px] uppercase text-zinc-500">Tari</div>
-                              <div>{(it?.tari || []).join(", ")}</div>
+                        <li key={`${d}-${sec}`} className="grid grid-cols-5 items-start gap-2 px-3 py-2 text-[13px]">
+                          <div className="pr-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{sec}</span>
+                              {it && (
+                                <button
+                                  onClick={() => handleDelete(d, sec)}
+                                  className="text-[11px] text-red-600 underline"
+                                >
+                                  hapus
+                                </button>
+                              )}
                             </div>
                           </div>
+                          <div className="min-h-[20px] break-words text-center text-xs">{wl || "—"}</div>
+                          <div className="min-h-[20px] break-words text-center text-xs">{s || "—"}</div>
+                          <div className="min-h-[20px] break-words text-center text-xs">{m || "—"}</div>
+                          <div className="min-h-[20px] break-words text-center text-xs">{t || "—"}</div>
                         </li>
                       );
                     })}
@@ -666,12 +678,12 @@ export default function Home() {
           )}
         </div>
 
-        {/* Tabel Rekap (Desktop) */}
-        <div className="hidden overflow-auto rounded-lg border bg-white shadow-sm md:block" id="table-container">
+        {/* Tabel Rekap - digunakan di semua ukuran layar (scroll horizontal di mobile) */}
+        <div className="overflow-auto rounded-lg border bg-white shadow-sm" id="table-container">
           <table className="min-w-[900px] w-full border-collapse">
             <thead>
               <tr className="bg-zinc-100 text-left text-sm">
-                <th className="sticky left-0 top-0 z-30 border bg-zinc-100 p-3">Tanggal/ Bagian</th>
+                <th className="sticky left-0 top-0 z-30 w-36 sm:w-48 border bg-zinc-100 p-2 sm:p-3">Tanggal/ Bagian</th>
                 {viewDates.map((d) => (
                   <th
                     key={d}
@@ -698,16 +710,20 @@ export default function Home() {
             <tbody className="text-sm">
               {SECTIONS.map((sec) => (
                 <tr key={sec} className="even:bg-zinc-50">
-                  <td className="sticky left-0 z-20 border bg-white p-2 font-medium">{sec}</td>
+                  <td className="sticky left-0 z-20 w-36 sm:w-48 border bg-white p-2 font-medium whitespace-nowrap">{sec}</td>
                   {viewDates.map((d) => {
                     const it = byKey.get(keyOf(d, sec));
                     const cell = (
                       <button
-                        onClick={() => handleDelete(d, sec)}
-                        className="ml-2 rounded border px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
-                        title="Hapus entri tanggal+bagian ini"
+                        onClick={() => setPendingDelete({ date: d, section: sec, item: it })}
+                        className="ml-2 inline-flex items-center justify-center rounded p-1 text-red-600 hover:bg-red-50"
+                        aria-label={`Hapus ${sec} pada ${fmtDateLabel(d)}`}
+                        title="Hapus"
                       >
-                        hapus
+                        {/* trash icon */}
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                          <path fillRule="evenodd" d="M9 2.25A2.25 2.25 0 0 0 6.75 4.5v.75H4.5a.75.75 0 0 0 0 1.5h.69l.8 12A2.25 2.25 0 0 0 8.24 21h7.52a2.25 2.25 0 0 0 2.25-2.25l.8-12h.69a.75.75 0 0 0 0-1.5h-2.25V4.5A2.25 2.25 0 0 0 15 2.25H9Zm6.75 3V4.5A.75.75 0 0 0 15 3.75H9A.75.75 0 0 0 8.25 4.5v.75h7.5Zm-6 4.5a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-1.5 0v-6a.75.75 0 0 1 .75-.75Zm4.5 0a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-1.5 0v-6a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+                        </svg>
                       </button>
                     );
                     const wlEmpty = !it || isEmptyField(it.wl);
@@ -745,6 +761,65 @@ export default function Home() {
           </p>
         )}
       </main>
+      {/* Confirm Delete Modal */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="border-b p-4 text-base font-semibold">Konfirmasi Hapus</div>
+            <div className="space-y-2 p-4 text-sm">
+              <p>Anda yakin ingin menghapus data berikut?</p>
+              <div className="rounded-md border bg-zinc-50 p-3">
+                <div className="flex justify-between text-xs text-zinc-600">
+                  <span>Tanggal</span>
+                  <span>{fmtDateLabel(pendingDelete.date)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-zinc-600">
+                  <span>Bagian</span>
+                  <span>{pendingDelete.section}</span>
+                </div>
+                <hr className="my-2" />
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="font-medium text-zinc-700">WL</div>
+                    <div>{(pendingDelete.item?.wl || []).join(", ") || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-zinc-700">Singer</div>
+                    <div>{(pendingDelete.item?.singer || []).join(", ") || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-zinc-700">Musik</div>
+                    <div>{(pendingDelete.item?.musik || []).join(", ") || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-zinc-700">Tari</div>
+                    <div>{(pendingDelete.item?.tari || []).join(", ") || "—"}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t p-3">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="rounded border px-3 py-2 text-sm hover:bg-zinc-100"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleDelete(pendingDelete.date, pendingDelete.section);
+                  setPendingDelete(null);
+                }}
+                className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
