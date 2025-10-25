@@ -106,18 +106,55 @@ const monthKey = (iso) => {
 };
 
 function loadData() {
-  if (typeof window === "undefined") return [];
+  // Fetch dari API, bukan localStorage
+  // Akan di-call di useEffect dengan async
+  return [];
+}
+
+function saveData(arr) {
+  // Deprecated - use API instead
+  // Kept for backward compatibility
+}
+
+async function fetchSchedules() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const res = await fetch('/api/schedules');
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json?.data) ? json.data : [];
   } catch {
     return [];
   }
 }
 
-function saveData(arr) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+async function saveSchedule(date, section, wl, singer, musik, tari) {
+  try {
+    const res = await fetch('/api/schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, section, wl, singer, musik, tari }),
+    });
+    if (!res.ok) throw new Error('Save failed');
+    return await res.json();
+  } catch (error) {
+    console.error('Error saving schedule:', error);
+    return null;
+  }
+}
+
+async function deleteSchedule(date, section) {
+  try {
+    const res = await fetch('/api/schedules', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, section }),
+    });
+    if (!res.ok) throw new Error('Delete failed');
+    return true;
+  } catch (error) {
+    console.error('Error deleting schedule:', error);
+    return false;
+  }
 }
 
 function MultiCheck({ label, value, onChange, options }) {
@@ -220,9 +257,22 @@ export default function Home() {
   const [tari, setTari] = useState([]);
   const [people, setPeople] = useState(PEOPLE_FALLBACK);
   const [monthView, setMonthView] = useState(""); // YYYY-MM or empty for all
+  const [loading, setLoading] = useState(true);
 
-  // init from localStorage
-  useEffect(() => setItems(loadData()), []);
+  // init from API
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      const data = await fetchSchedules();
+      if (!ignore) {
+        setItems(data);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // fetch people list from API (DB) with fallback
   useEffect(() => {
@@ -278,37 +328,36 @@ export default function Home() {
   }, []);
 
   function resetForm() {
-  setWl([]);
+    setWl([]);
     setSinger([]);
     setMusik([]);
     setTari([]);
   }
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
     if (!date || !section) return;
 
-    const rec = {
-      id: keyOf(date, section),
-      date,
-      section,
-      wl, // array of names (can be empty)
-      singer,
-      musik,
-      tari,
-    };
-
-    const next = items.filter((i) => i.id !== rec.id).concat(rec);
-    setItems(next);
-    saveData(next);
+    // Save to API
+    const result = await saveSchedule(date, section, wl, singer, musik, tari);
+    if (result) {
+      // Update local state
+      const rec = result.data;
+      const next = items.filter((i) => i.id !== rec.id).concat(rec);
+      setItems(next);
+      resetForm();
+      setDate("");
+    }
   }
 
-  function handleDelete(dateDel, sectionDel) {
-    const next = items.filter(
-      (i) => !(i.date === dateDel && i.section === sectionDel)
-    );
-    setItems(next);
-    saveData(next);
+  async function handleDelete(dateDel, sectionDel) {
+    const success = await deleteSchedule(dateDel, sectionDel);
+    if (success) {
+      const next = items.filter(
+        (i) => !(i.date === dateDel && i.section === sectionDel)
+      );
+      setItems(next);
+    }
   }
 
   async function handleExport() {

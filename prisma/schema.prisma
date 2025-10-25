@@ -20,3 +20,18 @@ model Person {
   tags      String[]  @default([]) // optional labels/roles; can be empty
   createdAt DateTime  @default(now())
 }
+
+model Schedule {
+  id        Int       @id @default(autoincrement())
+  date      String    // YYYY-MM-DD
+  section   String
+  wl        String[]  @default([]) // array of names
+  singer    String[]  @default([])
+  musik     String[]  @default([])
+  tari      String[]  @default([])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([date, section]) // one entry per date+section
+  @@index([date])
+}
