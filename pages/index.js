@@ -501,7 +501,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 antialiased">
   <main className="mx-auto max-w-7xl p-4 sm:p-6">
-        <h1 className="mb-6 text-2xl font-semibold">
+        <h1 className="mb-6 text-2xl font-semibold text-center">
           Dokumentasi Pelayanan Ibadah Raya
         </h1>
 
