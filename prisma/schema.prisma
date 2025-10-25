@@ -1,0 +1,22 @@
+// Prisma schema for People master
+// DATABASE_URL must be set (e.g., Vercel Postgres "POSTGRES_PRISMA_URL")
+// In Vercel: set DATABASE_URL to the value of POSTGRES_PRISMA_URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Use an environment variable for the connection string
+  // In Vercel, set DATABASE_URL = POSTGRES_PRISMA_URL
+  url      = env("DATABASE_URL")
+}
+
+model Person {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  active    Boolean   @default(true)
+  tags      String[]  @default([]) // optional labels/roles; can be empty
+  createdAt DateTime  @default(now())
+}
