@@ -279,6 +279,16 @@ function SingleSelect({ label, value, onChange, options, allowEmpty = true }) {
   );
 }
 
+// Helper untuk mapping id ke nama
+function idToName(id, peopleArr) {
+  const found = peopleArr.find(p => String(p.id) === String(id));
+  return found ? found.name : id;
+}
+function idsToNames(ids, peopleArr) {
+  if (!Array.isArray(ids)) return '';
+  return ids.map(id => idToName(id, peopleArr)).join(', ');
+}
+
 export default function Home() {
   const [items, setItems] = useState([]);
   const [date, setDate] = useState("");
@@ -765,22 +775,26 @@ export default function Home() {
                     const sEmpty = !it || isEmptyField(it.singer);
                     const mEmpty = !it || isEmptyField(it.musik);
                     const tEmpty = !it || isEmptyField(it.tari);
+                    const wlName = idToName(it?.wl, people);
+                    const singerNames = idsToNames(it?.singer, people);
+                    const musikNames = idsToNames(it?.musik, people);
+                    const tariNames = idsToNames(it?.tari, people);
                     return (
                       <>
                         <td key={`${sec}-${d}-wl`} className={`border p-2 align-top ${wlEmpty ? "bg-red-50" : d === todayIso ? "bg-yellow-50/50" : ""}`}>
                           <div className="flex items-start justify-between gap-2">
-                            <span>{Array.isArray(it?.wl) ? it.wl.join(", ") : (it?.wl ?? "")}</span>
+                            <span>{wlName}</span>
                             {it && cell}
                           </div>
                         </td>
                         <td key={`${sec}-${d}-s`} className={`border p-2 align-top ${sEmpty ? "bg-red-50" : d === todayIso ? "bg-yellow-50/50" : ""}`}>
-                          {(it?.singer || []).join(", ")}
+                          {singerNames}
                         </td>
                         <td key={`${sec}-${d}-m`} className={`border p-2 align-top ${mEmpty ? "bg-red-50" : d === todayIso ? "bg-yellow-50/50" : ""}`}>
-                          {(it?.musik || []).join(", ")}
+                          {musikNames}
                         </td>
                         <td key={`${sec}-${d}-t`} className={`border p-2 align-top ${tEmpty ? "bg-red-50" : d === todayIso ? "bg-yellow-50/50" : ""}`}>
-                          {(it?.tari || []).join(", ")}
+                          {tariNames}
                         </td>
                       </>
                     );
