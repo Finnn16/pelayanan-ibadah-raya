@@ -105,23 +105,23 @@ const monthKey = (iso) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
-function loadData() {
-  // Fetch dari API, bukan localStorage
-  // Akan di-call di useEffect dengan async
-  return [];
-}
-
-function saveData(arr) {
-  // Deprecated - use API instead
-  // Kept for backward compatibility
-}
 
 async function fetchSchedules() {
   try {
     const res = await fetch('/api/schedules');
     if (!res.ok) return [];
     const json = await res.json();
-    return Array.isArray(json?.data) ? json.data : [];
+    if (!Array.isArray(json?.data)) return [];
+    // Format ulang agar kompatibel dengan frontend
+    return json.data.map(item => ({
+      id: item.id,
+      date: item.tanggal,
+      section: item.bagian,
+      wl: item.wl ? [item.wl] : [],
+      singer: item.singers || [],
+      musik: item.musik || [],
+      tari: item.tari || [],
+    }));
   } catch {
     return [];
   }
@@ -129,13 +129,43 @@ async function fetchSchedules() {
 
 async function saveSchedule(date, section, wl, singer, musik, tari) {
   try {
-    const res = await fetch('/api/schedules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, section, wl, singer, musik, tari }),
-    });
-    if (!res.ok) throw new Error('Save failed');
-    return await res.json();
+    // Cek apakah sudah ada jadwal untuk date & section
+    const arr = await fetchSchedules();
+    const existing = arr.find(item => item.date === date && item.section === section);
+    let res;
+    const wlId = Array.isArray(wl) ? wl[0] || null : wl;
+    if (existing) {
+      // Update jadwal
+      res = await fetch('/api/schedules', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: existing.id,
+          tanggal: date,
+          bagian: section,
+          wl: wlId,
+          singer,
+          musik,
+          tari,
+        }),
+      });
+    } else {
+      // Insert jadwal baru
+      res = await fetch('/api/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tanggal: date,
+          bagian: section,
+          wl: wlId,
+          singer,
+          musik,
+          tari,
+        }),
+      });
+    }
+    if (!res.ok) throw new Error('Gagal simpan jadwal');
+    return { ok: true };
   } catch (error) {
     console.error('Error saving schedule:', error);
     return null;
@@ -144,12 +174,15 @@ async function saveSchedule(date, section, wl, singer, musik, tari) {
 
 async function deleteSchedule(date, section) {
   try {
+    const arr = await fetchSchedules();
+    const existing = arr.find(item => item.date === date && item.section === section);
+    if (!existing) return false;
     const res = await fetch('/api/schedules', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, section }),
+      body: JSON.stringify({ id: existing.id }),
     });
-    if (!res.ok) throw new Error('Delete failed');
+    if (!res.ok) throw new Error('Gagal hapus jadwal');
     return true;
   } catch (error) {
     console.error('Error deleting schedule:', error);
@@ -160,14 +193,13 @@ async function deleteSchedule(date, section) {
 function MultiCheck({ label, value, onChange, options }) {
   const [q, setQ] = useState("");
   const filtered = useMemo(
-    () => options.filter((o) => o.toLowerCase().includes(q.toLowerCase())),
+    () => options.filter((o) => o.name.toLowerCase().includes(q.toLowerCase())),
     [options, q]
   );
-  const toggle = (name) => {
-    if (value.includes(name)) onChange(value.filter((v) => v !== name));
-    else onChange([...value, name]);
+  const toggle = (id) => {
+    if (value.includes(id)) onChange(value.filter((v) => v !== id));
+    else onChange([...value, id]);
   };
-
   return (
     <fieldset className="flex h-64 flex-col gap-2 rounded-lg border border-zinc-200 p-2 text-xs sm:h-72 sm:p-3 sm:text-sm">
       <legend className="text-center text-xs font-semibold uppercase tracking-wide text-zinc-700 sm:text-sm">
@@ -191,17 +223,17 @@ function MultiCheck({ label, value, onChange, options }) {
       </div>
       <div className="flex-1 overflow-auto rounded-md border border-zinc-200 p-1.5 sm:p-2">
         <ul className="flex flex-col gap-0.5 sm:gap-1">
-          {filtered.map((name) => (
-            <li key={name} className="flex items-center gap-1.5 sm:gap-2">
+          {filtered.map((p) => (
+            <li key={p.id} className="flex items-center gap-1.5 sm:gap-2">
               <input
-                id={`${label}-${name}`}
+                id={`${label}-${p.id}`}
                 type="checkbox"
                 className="h-4 w-4 cursor-pointer"
-                checked={value.includes(name)}
-                onChange={() => toggle(name)}
+                checked={value.includes(p.id)}
+                onChange={() => toggle(p.id)}
               />
-              <label htmlFor={`${label}-${name}`} className="select-none cursor-pointer text-xs sm:text-sm">
-                {name}
+              <label htmlFor={`${label}-${p.id}`} className="select-none cursor-pointer text-xs sm:text-sm">
+                {p.name}
               </label>
             </li>
           ))}
@@ -209,7 +241,7 @@ function MultiCheck({ label, value, onChange, options }) {
       </div>
       {value.length > 0 && (
         <div className="truncate pt-0.5 text-xs text-zinc-600 sm:pt-1">
-          Terpilih: {value.join(", ")}
+          Terpilih: {options.filter(p => value.includes(p.id)).map(p => p.name).join(", ")}
         </div>
       )}
     </fieldset>
@@ -228,9 +260,9 @@ function SingleSelect({ label, value, onChange, options, allowEmpty = true }) {
         {allowEmpty && (
           <option value="">— (kosong) —</option>
         )}
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
+        {options.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
           </option>
         ))}
       </select>
@@ -255,7 +287,7 @@ export default function Home() {
   const [singer, setSinger] = useState([]);
   const [musik, setMusik] = useState([]);
   const [tari, setTari] = useState([]);
-  const [people, setPeople] = useState(PEOPLE_FALLBACK);
+  const [people, setPeople] = useState([]); // [{id, name}]
   const [monthView, setMonthView] = useState(""); // YYYY-MM or empty for all
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState(null); // {date, section, item}
@@ -284,12 +316,13 @@ export default function Home() {
         if (!res.ok) return;
         const json = await res.json();
         if (!ignore && Array.isArray(json?.data)) {
-          const names = json.data
+          // Simpan array objek {id, name}
+          const arr = json.data
             .filter((p) => p?.active !== false)
-            .map((p) => p.name)
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
-          if (names.length) setPeople(names);
+            .map((p) => ({ id: p.id, name: p.name }))
+            .filter((p) => p.id && p.name)
+            .sort((a, b) => a.name.localeCompare(b.name));
+          if (arr.length) setPeople(arr);
         }
       } catch {}
     })();
@@ -339,11 +372,11 @@ export default function Home() {
     e.preventDefault();
     if (!date || !section) return;
 
-    // Save to API
+    // Save to localStorage
     const result = await saveSchedule(date, section, wl, singer, musik, tari);
-    if (result) {
-      // Update local state
-      const rec = result.data;
+    if (result && result.ok) {
+      // Buat rec baru
+      const rec = { id: `${date}::${section}`, date, section, wl, singer, musik, tari };
       const next = items.filter((i) => i.id !== rec.id).concat(rec);
       setItems(next);
       resetForm();
@@ -358,6 +391,8 @@ export default function Home() {
         (i) => !(i.date === dateDel && i.section === sectionDel)
       );
       setItems(next);
+      // Update localStorage juga
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     }
   }
 
