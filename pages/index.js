@@ -429,11 +429,16 @@ export default function Home() {
         const row = [sec];
         datesSlice.forEach((d) => {
           const it = byKey.get(keyOf(d, sec));
+          // Mapping id ke nama
+          const wlName = idToName(it?.wl, people);
+          const singerNames = idsToNames(it?.singer, people);
+          const musikNames = idsToNames(it?.musik, people);
+          const tariNames = idsToNames(it?.tari, people);
           row.push(
-            Array.isArray(it?.wl) ? it.wl.join(", ") : (it?.wl ?? ""),
-            (it?.singer || []).join(", "),
-            (it?.musik || []).join(", "),
-            (it?.tari || []).join(", ")
+            wlName,
+            singerNames,
+            musikNames,
+            tariNames
           );
         });
         return row;
