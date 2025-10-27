@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 // Penyimpanan lokal (browser)
 const STORAGE_KEY = "pelayanan-ibadah:schedule";
@@ -118,7 +118,7 @@ async function fetchSchedules() {
       date: item.tanggal,
       section: item.bagian,
       wl: item.wl ? [item.wl] : [],
-      singer: item.singers || [],
+      singer: item.singer || [],
       musik: item.musik || [],
       tari: item.tari || [],
     }));
@@ -129,7 +129,10 @@ async function fetchSchedules() {
 
 async function saveSchedule(date, section, wl, singer, musik, tari) {
   try {
-    // Cek apakah sudah ada jadwal untuk date & section
+    // Pastikan array tidak null
+    const singerArr = Array.isArray(singer) ? singer : [];
+    const musikArr = Array.isArray(musik) ? musik : [];
+    const tariArr = Array.isArray(tari) ? tari : [];
     const arr = await fetchSchedules();
     const existing = arr.find(item => item.date === date && item.section === section);
     let res;
@@ -144,9 +147,9 @@ async function saveSchedule(date, section, wl, singer, musik, tari) {
           tanggal: date,
           bagian: section,
           wl: wlId,
-          singer,
-          musik,
-          tari,
+          singer: singerArr,
+          musik: musikArr,
+          tari: tariArr,
         }),
       });
     } else {
@@ -158,9 +161,9 @@ async function saveSchedule(date, section, wl, singer, musik, tari) {
           tanggal: date,
           bagian: section,
           wl: wlId,
-          singer,
-          musik,
-          tari,
+          singer: singerArr,
+          musik: musikArr,
+          tari: tariArr,
         }),
       });
     }
@@ -286,7 +289,7 @@ function idToName(id, peopleArr) {
 }
 function idsToNames(ids, peopleArr) {
   if (!Array.isArray(ids)) return '';
-  return ids.map(id => idToName(id, peopleArr)).join(', ');
+  return ids.map(id => idToName(String(id), peopleArr)).join(', ');
 }
 
 export default function Home() {
@@ -298,6 +301,12 @@ export default function Home() {
   const [musik, setMusik] = useState([]);
   const [tari, setTari] = useState([]);
   const [people, setPeople] = useState([]); // [{id, name}]
+  const [showPeopleModal, setShowPeopleModal] = useState(false);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [personFormName, setPersonFormName] = useState("");
+  const [editingPersonId, setEditingPersonId] = useState(null);
+  const [peopleQuery, setPeopleQuery] = useState("");
+  const searchInputRef = useRef(null);
   const [monthView, setMonthView] = useState(""); // YYYY-MM or empty for all
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState(null); // {date, section, item}
@@ -340,6 +349,103 @@ export default function Home() {
       ignore = true;
     };
   }, []);
+
+  // Reload people list from API and update state
+  async function reloadPeople() {
+    setPeopleLoading(true);
+    try {
+      const res = await fetch('/api/people');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (Array.isArray(json?.data)) {
+        const arr = json.data
+          .filter((p) => p?.active !== false)
+          .map((p) => ({ id: p.id, name: p.name }))
+          .filter((p) => p.id && p.name)
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setPeople(arr);
+      }
+    } catch (err) {
+      console.error('Failed to reload people', err);
+    } finally {
+      setPeopleLoading(false);
+    }
+  }
+
+  // When modal opens, focus the search input and listen for Escape to close
+  useEffect(() => {
+    if (!showPeopleModal) return;
+    // focus search input (after next paint)
+    setTimeout(() => searchInputRef.current?.focus?.(), 0);
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setShowPeopleModal(false);
+        setEditingPersonId(null);
+        setPersonFormName("");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showPeopleModal]);
+
+  function openAddPerson() {
+    setEditingPersonId(null);
+    setPersonFormName("");
+  }
+
+  function openEditPerson(p) {
+    setEditingPersonId(p.id);
+    setPersonFormName(p.name || "");
+  }
+
+  async function handleCreatePerson(e) {
+    e && e.preventDefault();
+    if (!personFormName || personFormName.trim() === "") return;
+    try {
+      const res = await fetch('/api/people', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: personFormName.trim() })
+      });
+      if (!res.ok) throw new Error('Gagal tambah');
+      await reloadPeople();
+      setPersonFormName("");
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menambah nama');
+    }
+  }
+
+  async function handleUpdatePerson(e) {
+    e && e.preventDefault();
+    if (!editingPersonId) return;
+    try {
+      const res = await fetch(`/api/people/${editingPersonId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: personFormName })
+      });
+      if (!res.ok) throw new Error('Gagal update');
+      await reloadPeople();
+      setEditingPersonId(null);
+      setPersonFormName("");
+    } catch (err) {
+      console.error(err);
+      alert('Gagal mengubah nama');
+    }
+  }
+
+  async function handleDeletePerson(id) {
+    if (!confirm('Hapus nama ini?')) return;
+    try {
+      const res = await fetch(`/api/people/${id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) throw new Error('Gagal hapus');
+      await reloadPeople();
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menghapus nama');
+    }
+  }
 
   // derive dates sorted
   const dates = useMemo(
@@ -647,6 +753,16 @@ export default function Home() {
             Export ke Excel
           </button>
 
+          <button
+            onClick={() => {
+              setShowPeopleModal(true);
+              reloadPeople();
+            }}
+            className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 active:bg-blue-800 sm:px-4"
+          >
+            Kelola Nama
+          </button>
+
           <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center sm:gap-2">
             <label className="text-xs text-zinc-700 sm:text-sm">Filter Bulan</label>
             <input
@@ -668,6 +784,102 @@ export default function Home() {
         </div>
 
   {/* Mobile-first cards (disabled, we use horizontal table even on mobile) */}
+
+  {/* People management modal */}
+  {showPeopleModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-4 shadow-lg">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Kelola Nama (People)</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowPeopleModal(false); setEditingPersonId(null); setPersonFormName(""); }}
+              className="rounded border px-2 py-1 text-sm hover:bg-zinc-100"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="mb-2 flex gap-2">
+            <input
+              ref={searchInputRef}
+              value={peopleQuery}
+              onChange={(e) => setPeopleQuery(e.target.value)}
+              placeholder="Cari nama..."
+              className="flex-1 rounded-md border border-zinc-300 px-2 py-2 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => { setPeopleQuery(""); searchInputRef.current?.focus?.(); }}
+              className="rounded-md border px-3 py-2 text-sm hover:bg-zinc-100"
+            >
+              Clear
+            </button>
+          </div>
+
+          <form onSubmit={editingPersonId ? handleUpdatePerson : handleCreatePerson} className="flex gap-2">
+            <input
+              value={personFormName}
+              onChange={(e) => setPersonFormName(e.target.value)}
+              placeholder="Nama baru / ubah..."
+              className="flex-1 rounded-md border border-zinc-300 px-2 py-2 text-sm outline-none"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              {editingPersonId ? 'Simpan' : 'Tambah'}
+            </button>
+            {editingPersonId && (
+              <button
+                type="button"
+                onClick={() => { setEditingPersonId(null); setPersonFormName(""); }}
+                className="rounded-md border px-3 py-2 text-sm hover:bg-zinc-100"
+              >
+                Batal
+              </button>
+            )}
+          </form>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm text-zinc-600">Daftar Nama</div>
+            <div className="text-xs text-zinc-500">{peopleLoading ? 'Memuat...' : `${people.length} item`}</div>
+          </div>
+          <ul className="space-y-1">
+            {people
+              .filter((p) => p.name.toLowerCase().includes(peopleQuery.trim().toLowerCase()))
+              .map((p) => (
+                <li key={p.id} className="flex items-center justify-between rounded-md border p-2">
+                  <div className="truncate text-sm">{p.name}</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEditPerson(p)}
+                      className="rounded border px-2 py-1 text-xs hover:bg-zinc-100"
+                    >
+                      Ubah
+                    </button>
+                    <button
+                      onClick={() => handleDeletePerson(p.id)}
+                      className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </li>
+              ))}
+            {people.length === 0 && (
+              <li className="rounded-md border p-2 text-sm text-zinc-600">Tidak ada data.</li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )}
+
   <div className="hidden">
           {dates.length === 0 ? (
             <div className="rounded-lg border bg-white p-4 text-sm text-zinc-600">
